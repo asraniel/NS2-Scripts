@@ -29,9 +29,6 @@ class 'Player' (LiveScriptActor)
 Player.kTooltipSound    = PrecacheAsset("sound/ns2.fev/common/tooltip")
 Player.kToolTipInterval = 18
 
-Player.kMarineResReceivedSound      = PrecacheAsset("sound/ns2.fev/marine/common/res_received")
-Player.kAlienResReceivedSound       = PrecacheAsset("sound/ns2.fev/alien/common/res_received")
-
 if (Server) then
     Script.Load("lua/Player_Server.lua")
 else
@@ -341,7 +338,8 @@ function Player:OnInit()
     
     LiveScriptActor.OnInit(self)
     
-    if Server then
+    // Only give weapons when playing
+    if Server and self:GetTeamNumber() ~= kNeutralTeamType then
            
         self:InitWeapons()
         
@@ -1206,39 +1204,20 @@ function Player:UpdateViewAngles(input)
 
     PROFILE("Player:UpdateViewAngles")
     
-    if(self.desiredPitch ~= nil or self.desiredRoll ~= nil) then
+    if (self.desiredRoll ~= 0) then
     
+        local angles = Angles(self:GetAngles())        
         local kRate = input.time * 10
-    
-        local angles = Angles(self:GetAngles())
-        
-        if(self.desiredRoll ~= nil) then
-            angles.roll = SlerpRadians(angles.roll, self.desiredRoll, kRate)
-            self:SetAngles(angles)
-        end
-        
-        local viewAngles = Angles(input.pitch, input.yaw, 0)
-        
-        /*
-        if(self.desiredRoll ~= nil) then
-            viewAngles.roll = SlerpRadians(viewAngles.roll, 0 + self.desiredRoll, kRate)
-        end
-        
-        if(self.desiredPitch ~= nil) then
-            viewAngles.pitch = SlerpRadians(viewAngles.pitch, input.pitch + self.desiredPitch, kRate)
-        end
-        */
-                
-        self:SetViewAngles(viewAngles)
+        angles.roll = SlerpRadians(angles.roll, self.desiredRoll, kRate)
+       
+        self:SetAngles(angles)
 
-    else
-    
-        // Update to the current view angles.    
-        local viewAngles = Angles(input.pitch, input.yaw, 0)
-        self:SetViewAngles(viewAngles)
+    end
         
-    end    
-    
+    // Update to the current view angles.    
+    local viewAngles = Angles(input.pitch, input.yaw, 0)
+    self:SetViewAngles(viewAngles)
+        
     // Update view offset from crouching
     local viewY = self:GetMaxViewOffsetHeight()
     viewY = viewY - viewY * self:GetCrouchShrinkAmount() * self:GetCrouchAmount()
@@ -2134,7 +2113,7 @@ function Player:HandleButtons(input)
 
     PROFILE("Player:HandleButtons")
 
-    if (bit.band(input.commands, Move.Use) ~= 0) then
+    if (bit.band(input.commands, Move.Use) ~= 0) and not self.primaryAttackLastFrame and not self.secondaryAttackLastFrame then
         self:Use(input.time)    
     end
     

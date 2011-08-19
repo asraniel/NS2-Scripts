@@ -147,6 +147,15 @@ function OptionsDialogUI_SetMusicVolume(volume)
     Client.SetMusicVolume( volume / 100 )
 end
 
+function OptionsDialogUI_SetVoiceVolume(volume)
+    Client.SetOptionInteger( kVoiceVolumeOptionsKey, volume )
+    Client.SetVoiceVolume( volume / 100 )
+end
+
+function OptionsDialogUI_GetVoiceVolume()
+    return Client.GetOptionInteger( kVoiceVolumeOptionsKey, 90 )
+end
+
 
 /**
  * Get all the values from the form
@@ -159,7 +168,7 @@ end
  * windowed - true/false run in windowed mode
  * invMouse - true/false (true == mouse is inverted)
  */
-function OptionsDialogUI_SetValues(nickname, mouseSens, screenResIdx, visualDetailIdx, soundVol, musicVol, windowed, invMouse)
+function OptionsDialogUI_SetValues(nickname, mouseSens, screenResIdx, visualDetailIdx, soundVol, musicVol, windowed, invMouse, voiceVol)
 
     Client.SetOptionString( kNicknameOptionsKey, nickname )
     
@@ -173,6 +182,7 @@ function OptionsDialogUI_SetValues(nickname, mouseSens, screenResIdx, visualDeta
     // Save sound and music options 
     OptionsDialogUI_SetSoundVolume( soundVol )
     OptionsDialogUI_SetMusicVolume( musicVol )
+    OptionsDialogUI_SetVoiceVolume( voiceVol )
     
     Client.SetOptionBoolean ( kFullscreenOptionsKey, not windowed )
     

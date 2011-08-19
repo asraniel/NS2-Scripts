@@ -133,26 +133,38 @@ function GetBuildNoCollision(techId, position, attachEntity, ignoreEntity)
         filter = EntityFilterOne(attachEntity)
     end
 
+    local result = false
+    local canBuildOnWall = LookupTechData(techId, kStructureBuildOnWall)
+    
     local extents = GetExtents(techId)
     local trace = Shared.TraceBox(extents, position + Vector(0, extents.y + .01, 0), position + Vector(0, extents.y + .02, 0), PhysicsMask.AllButPCsAndInfestation, filter)
     
-    if trace.fraction ~= 1 then
-        // check if we can tilt the building a little to allow it to build on this surface
-        local normal = Vector(trace.normal)
-        normal:Normalize()
-        local tilt = Vector.yAxis:DotProduct(normal)
-        // normal buildings can only tilt by around 10 degrees, buildOnWall can tilt freely
-        local maxTilt = LookupTechData(techId, kStructureBuildOnWall) and 0 or 0.9  
-        if math.abs(tilt) >= maxTilt then
-            // align along normal
-            p1 = position + normal * 0.01
-            p2 = position + normal * extents.y * 2
-            trace = Shared.TraceViewBox(extents.x, extents.z, 0, p1 , p2, PhysicsMask.AllButPCsAndInfestation, filter)
-        end
-
+    if (not canBuildOnWall) then
+      // $AS FIXME: This is totally lame in how I should have to do this :/
+      local noBuild = Pathing.GetIsFlagSet(position, extents, Pathing.PolyFlag_NoBuild)
+      local walk = Pathing.GetIsFlagSet(position, extents, Pathing.PolyFlag_Walk)
+      if (not noBuild and walk) then
+        result = true
+      end
+    else
+        if trace.fraction ~= 1 then
+            // check if we can tilt the building a little to allow it to build on this surface
+            local normal = Vector(trace.normal)
+            normal:Normalize()
+            local tilt = Vector.yAxis:DotProduct(normal)
+            // normal buildings can only tilt by around 10 degrees, buildOnWall can tilt freely
+            local maxTilt = canBuildOnWall and 0 or 0.9  
+            if math.abs(tilt) >= maxTilt then
+                // align along normal
+                p1 = position + normal * 0.01
+                p2 = position + normal * extents.y * 2
+                trace = Shared.TraceViewBox(extents.x, extents.z, 0, p1 , p2, PhysicsMask.AllButPCsAndInfestation, filter)
+            end
+        end  
+        
+        result = (trace.fraction == 1)
     end
-    
-    return trace.fraction == 1, trace   
+    return result, trace   
 end
 
 function CheckBuildEntityRequirements(techId, position, player, ignoreEntity)
@@ -215,7 +227,7 @@ function CheckBuildEntityRequirements(techId, position, player, ignoreEntity)
 
                     if numFriendlyEntitiesInRadius >= (kMaxEntitiesInRadius - 1) then
                     
-                        errorString = "Too many entities in area."
+                        errorString = "TOO_MANY_ENTITES"
                         legalBuild = false
                         break
                         
@@ -284,7 +296,7 @@ function GetIsBuildLegal(techId, position, snapRadius, player, ignoreEntity)
     // Display tooltip error
     if not legalBuild and errorString ~= "" and HasMixin(player, "Tooltip") then
     
-        player:AddTooltip(errorString, 2)
+        player:AddLocalizedTooltip(errorString, false, false)
         
     // Check infestation requirements
     elseif legalBuild then
@@ -1209,6 +1221,7 @@ function TriggerHitEffects(doer, target, origin, surface, melee)
 
     if target and target.GetClassName then
         tableParams[kEffectFilterClassName] = target:GetClassName()
+        tableParams[kEffectFilterIsMarine] = target:GetTeamType() == kMarineTeamType
         tableParams[kEffectFilterIsAlien] = target:GetTeamType() == kAlienTeamType
     end
     
