@@ -7,19 +7,19 @@
 // Patch of infestation created by alien commander.
 //
 // ========= For more information, visit us at http://www.unknownworlds.com =====================
-Script.Load("lua/LiveScriptActor.lua")
+Script.Load("lua/ScriptActor.lua")
+Script.Load("lua/PointGiverMixin.lua")
 Script.Load("lua/GameEffectsMixin.lua")
-Script.Load("lua/FlinchMixin.lua")
 Script.Load("lua/LOSMixin.lua")
+Script.Load("lua/PathingMixin.lua")
 
-class 'Infestation' (LiveScriptActor)
+class 'Infestation' (ScriptActor)
 
 Infestation.kMapName = "infestation"
 
 Infestation.kEnergyCost = kGrowCost
 Infestation.kInitialHealth = 50
 Infestation.kMaxHealth = 500
-Infestation.kVerticalSize = 1
 Infestation.kDecalVerticalSize = 1
 Infestation.kGrowthRateScalar = 1
 
@@ -43,14 +43,13 @@ Infestation.networkVars =
 }
 
 PrepareClassForMixin(Infestation, GameEffectsMixin)
-PrepareClassForMixin(Infestation, FlinchMixin)
 
 function Infestation:OnCreate()
 
-    LiveScriptActor.OnCreate(self)
+    ScriptActor.OnCreate(self)
     
     InitMixin(self, GameEffectsMixin)
-    InitMixin(self, FlinchMixin)
+    InitMixin(self, PointGiverMixin)
     InitMixin(self, PathingMixin)
     
     self.health = Infestation.kInitialHealth
@@ -77,7 +76,7 @@ function Infestation:OnCreate()
     // our personal thinktime; avoid clumping
     self.thinkTime = Infestation.kThinkTime + 0.001 * self:GetId() % 100
     
-    if (Client) then
+    if Client then
         self.decal = Client.CreateRenderDecal()
         self.decal:SetMaterial("materials/infestation/infestation_decal.material")
     else 
@@ -92,22 +91,22 @@ function Infestation:SetGrowthRateScalar(scalar)
     self.growthRateScalar = scalar
 end
 
-function Infestation:OnDestroy()    
-    LiveScriptActor.OnDestroy(self)
+function Infestation:OnDestroy()
+
+    ScriptActor.OnDestroy(self)
 
     if Client then
-        Client.DestroyRenderDecal( self.decal )
+        Client.DestroyRenderDecal(self.decal)
         self.decal = nil
     else
         Server.infestationMap:RemoveInfestation(self)
     end
-
-   // self:ClearPathingFlags(Pathing.PolyFlag_Infestation)
+   
 end
 
 function Infestation:OnInit()
 
-    LiveScriptActor.OnInit(self)
+    ScriptActor.OnInit(self)
     
     self:SetAnimation("scale")
 
@@ -139,10 +138,6 @@ function Infestation:GetTechId()
     return kTechId.Infestation
 end
 
-function Infestation:GetIsSelectable()
-    return false
-end
-
 function Infestation:OnThink()
     PROFILE("Infestation:OnThink")
 
@@ -155,12 +150,13 @@ function Infestation:OnThink()
     end
        
     if self.radius ~= self.maxRadius then
-        LiveScriptActor.OnUpdate(self, deltaTime)
+        // Why is OnUpdate called here? This is strange.
+        ScriptActor.OnUpdate(self, deltaTime)
         self:SetNextThink(0.01) // update on every tick while we are changing the radius
         self.lastThinkTime = now 
         self:SetPathingFlags(Pathing.PolyFlag_Infestation)     
     else
-        LiveScriptActor.OnThink(self)
+        ScriptActor.OnThink(self)
         // avoid clumping and vary the thinkTime individually for each infestation patch (with 0-100ms)
         self.lastThinkTime = self.lastThinkTime + self.thinkTime
         // lastThinktime is now "now". Add in another dose of delta to find when we want to run next
@@ -176,7 +172,7 @@ function Infestation:OnThink()
 
 end
 
-function Infestation:GetIsPointOnInfestation(point)
+function Infestation:GetIsPointOnInfestation(point, verticalSize)
 
     local onInfestation = false
     
@@ -188,7 +184,7 @@ function Infestation:GetIsPointOnInfestation(point)
         local toPoint = point - self:GetOrigin()
         local verticalProjection = math.abs( self:GetCoords().yAxis:DotProduct( toPoint ) )
         
-        onInfestation = (verticalProjection < Infestation.kVerticalSize)
+        onInfestation = (verticalProjection < verticalSize)
         
     end
     
@@ -211,7 +207,7 @@ if Client then
 
 function Infestation:UpdateRenderModel()
 
-    LiveScriptActor.UpdateRenderModel(self)
+    ScriptActor.UpdateRenderModel(self)
     
     if self.decal then
         self.decal:SetCoords( self:GetCoords() )

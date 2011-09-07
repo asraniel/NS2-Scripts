@@ -6,10 +6,15 @@
 //                  Max McGuire (max@unknownworlds.com)
 //
 // ========= For more information, visit us at http://www.unknownworlds.com =====================
-Script.Load("lua/LiveScriptActor.lua")
+Script.Load("lua/ScriptActor.lua")
+Script.Load("lua/LiveMixin.lua")
 Script.Load("lua/GameEffectsMixin.lua")
+Script.Load("lua/OrdersMixin.lua")
+Script.Load("lua/SelectableMixin.lua")
+Script.Load("lua/WeldableMixin.lua")
+Script.Load("lua/PathingMixin.lua")
 
-class 'Door' (LiveScriptActor)
+class 'Door' (ScriptActor)
 
 Door.kMapName = "door"
 
@@ -57,14 +62,23 @@ Door.networkVars   = {
 
 }
 
+PrepareClassForMixin(Door, LiveMixin)
 PrepareClassForMixin(Door, GameEffectsMixin)
+PrepareClassForMixin(Door, OrdersMixin)
 
 function Door:OnCreate()
 
-    LiveScriptActor.OnCreate(self)
+    ScriptActor.OnCreate(self)
     
+    InitMixin(self, LiveMixin)
     InitMixin(self, GameEffectsMixin)
+    InitMixin(self, OrdersMixin)
     InitMixin(self, PathingMixin)
+    InitMixin(self, SelectableMixin)
+    
+    if Server then
+        InitMixin(self, WeldableMixin)
+    end
     
     self:SetPathingFlags(Pathing.PolyFlag_NoBuild)
     
@@ -72,7 +86,7 @@ end
 
 function Door:OnInit()
       
-    LiveScriptActor.OnInit(self)
+    ScriptActor.OnInit(self)
        
     if (Server) then
     
@@ -80,7 +94,7 @@ function Door:OnInit()
       
         self:SetIsVisible(true)
         
-        self:SetPhysicsType(Actor.PhysicsType.Kinematic)
+        self:SetPhysicsType(PhysicsType.Kinematic)
         
         self:SetPhysicsGroup(PhysicsGroup.CommanderUnitGroup)
         
@@ -282,7 +296,7 @@ function Door:GetWeldTime()
 end
 
 // If door is ready to be welded by buildbot right now, and in the future
-function Door:GetCanBeWelded(entity)
+function Door:GetCanBeWeldedOverride(entity)
 
     local canBeWeldedNow = (self.state == Door.kState.Closed)
     local canBeWeldedFuture = (self.state ~= Door.kState.Welded)
